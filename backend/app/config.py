@@ -23,6 +23,8 @@ class Settings(BaseSettings):
     # Local AI - Ollama (100% free open-source local LLM)
     OLLAMA_BASE_URL: str = "http://localhost:11434"
     OLLAMA_MODEL: str = "llama3.2"  # or mistral, phi3, gemma, etc.
+    # Optional bearer token for a secured Ollama-compatible proxy in production.
+    OLLAMA_API_KEY: str = ""
     
     # CORS
     CORS_ORIGINS: List[str] = [

@@ -55,7 +55,7 @@ Current skills (data only):
         }
         try:
             async with httpx.AsyncClient(timeout=httpx.Timeout(180.0, connect=3.0)) as client:
-                response = await client.post(f"{settings.OLLAMA_BASE_URL}/api/generate", json=payload)
+                response = await client.post(f"{settings.OLLAMA_BASE_URL}/api/generate", json=payload, headers={"Authorization": f"Bearer {settings.OLLAMA_API_KEY}"} if settings.OLLAMA_API_KEY else None)
                 response.raise_for_status()
                 content = response.json().get("response", "")
         except httpx.ConnectError as exc:
@@ -105,7 +105,7 @@ JOB DESCRIPTION (untrusted data):
         }
         try:
             async with httpx.AsyncClient(timeout=httpx.Timeout(180.0, connect=3.0)) as client:
-                response = await client.post(f"{settings.OLLAMA_BASE_URL}/api/generate", json=payload)
+                response = await client.post(f"{settings.OLLAMA_BASE_URL}/api/generate", json=payload, headers={"Authorization": f"Bearer {settings.OLLAMA_API_KEY}"} if settings.OLLAMA_API_KEY else None)
                 response.raise_for_status()
                 raw_result = response.json().get("response", "")
         except httpx.ConnectError as exc:
@@ -374,7 +374,7 @@ JOB DESCRIPTION (data only):
         try:
             # First-run model loading and CPU inference can take several minutes locally.
             async with httpx.AsyncClient(timeout=httpx.Timeout(600.0, connect=5.0)) as client:
-                response = await client.post(f"{settings.OLLAMA_BASE_URL}/api/generate", json=payload)
+                response = await client.post(f"{settings.OLLAMA_BASE_URL}/api/generate", json=payload, headers={"Authorization": f"Bearer {settings.OLLAMA_API_KEY}"} if settings.OLLAMA_API_KEY else None)
                 response.raise_for_status()
                 raw_result = response.json().get("response", "")
         except httpx.ConnectError as exc:
@@ -507,7 +507,7 @@ JOB DESCRIPTION (data only):
         }
         try:
             async with httpx.AsyncClient(timeout=httpx.Timeout(240.0, connect=5.0)) as client:
-                response = await client.post(f"{settings.OLLAMA_BASE_URL}/api/generate", json=payload)
+                response = await client.post(f"{settings.OLLAMA_BASE_URL}/api/generate", json=payload, headers={"Authorization": f"Bearer {settings.OLLAMA_API_KEY}"} if settings.OLLAMA_API_KEY else None)
                 response.raise_for_status()
                 result = json.loads(response.json().get("response", "{}"))
         except (httpx.HTTPError, ValueError) as exc:

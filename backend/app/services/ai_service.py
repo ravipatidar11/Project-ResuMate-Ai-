@@ -63,7 +63,10 @@ class AIService:
         """Check if local Ollama instance is available and which models are installed."""
         try:
             async with httpx.AsyncClient(timeout=2.0) as client:
-                res = await client.get(f"{settings.OLLAMA_BASE_URL}/api/tags")
+                res = await client.get(
+                    f"{settings.OLLAMA_BASE_URL}/api/tags",
+                    headers={"Authorization": f"Bearer {settings.OLLAMA_API_KEY}"} if settings.OLLAMA_API_KEY else None,
+                )
                 if res.status_code == 200:
                     data = res.json()
                     models = [m.get("name") for m in data.get("models", []) if m.get("name")]
@@ -109,7 +112,11 @@ class AIService:
                 payload["system"] = system_prompt
 
             async with httpx.AsyncClient(timeout=20.0) as client:
-                response = await client.post(f"{settings.OLLAMA_BASE_URL}/api/generate", json=payload)
+                response = await client.post(
+                    f"{settings.OLLAMA_BASE_URL}/api/generate",
+                    json=payload,
+                    headers={"Authorization": f"Bearer {settings.OLLAMA_API_KEY}"} if settings.OLLAMA_API_KEY else None,
+                )
                 if response.status_code == 200:
                     result = response.json()
                     return result.get("response", "").strip()
