@@ -121,7 +121,7 @@ async def upload_and_parse_resume(
     if target_role:
         structured_data["personal_info"]["jobTitle"] = target_role
 
-    # Main scoring and reasoning come from the configured local Ollama model.
+    # Score the extracted resume locally with the built-in review rules.
     ai_report = await AIAnalyzer.analyze_resume(
         raw_text,
         target_role=target_role or structured_data.get("personal_info", {}).get("jobTitle", ""),

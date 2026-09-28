@@ -3,7 +3,7 @@ from app.schemas.resume import ResumeCreate, ResumeUpdate, ResumeResponse, Resum
 from app.schemas.ai import (
     GenerateSummaryRequest, ImproveSummaryRequest, ImproveExperienceRequest,
     GenerateProjectDescRequest, GenerateBulletsRequest, ImproveSkillsRequest,
-    MakeAtsFriendlyRequest, AIResponse, OllamaStatusResponse
+    MakeAtsFriendlyRequest, AIResponse, AnalysisEngineStatus
 )
 from app.schemas.analysis import AnalyzeTextRequest, AnalysisResponse, AnalysisListItem
 from app.schemas.job_match import JobMatchRequest, JobMatchResponse, OptimizeResumeRequest, OptimizeResumeResponse
@@ -13,7 +13,7 @@ __all__ = [
     "ResumeCreate", "ResumeUpdate", "ResumeResponse", "ResumeListItem",
     "GenerateSummaryRequest", "ImproveSummaryRequest", "ImproveExperienceRequest",
     "GenerateProjectDescRequest", "GenerateBulletsRequest", "ImproveSkillsRequest",
-    "MakeAtsFriendlyRequest", "AIResponse", "OllamaStatusResponse",
+    "MakeAtsFriendlyRequest", "AIResponse", "AnalysisEngineStatus",
     "AnalyzeTextRequest", "AnalysisResponse", "AnalysisListItem",
     "JobMatchRequest", "JobMatchResponse", "OptimizeResumeRequest", "OptimizeResumeResponse"
 ]

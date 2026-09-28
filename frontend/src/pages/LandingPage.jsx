@@ -94,7 +94,7 @@ export default function LandingPage() {
             {/* Free Pill */}
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-bold mb-6 shadow-xs">
               <Zap className="w-3.5 h-3.5 fill-emerald-500 text-emerald-500" />
-              <span>100% Free Forever · Zero Paid APIs · Local Privacy</span>
+              <span>Free to Use · No Model Setup · Built-in Analysis</span>
             </div>
 
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-slate-950 tracking-tight leading-[1.15]">
@@ -102,7 +102,7 @@ export default function LandingPage() {
             </h1>
 
             <p className="mt-5 text-lg sm:text-xl text-slate-600 leading-relaxed font-normal">
-              Create professional, ATS-compliant resumes from scratch or upload your existing document. Get deep AI diagnostics, tailored job description matching, and vector-clean PDF downloads at ₹0 cost.
+              Create professional, ATS-friendly resumes from scratch or upload your existing document. Get evidence-based resume checks, job-keyword matching, and clean PDF downloads at ₹0 cost.
             </p>
 
             {/* CTA Buttons */}
@@ -146,7 +146,7 @@ export default function LandingPage() {
               </div>
               <div className="flex items-center gap-1.5">
                 <Cpu className="w-4 h-4 text-indigo-500" />
-                <span>Local Ollama LLM Supported</span>
+                <span>No Model Installation Required</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <Download className="w-4 h-4 text-blue-500" />
@@ -245,9 +245,9 @@ export default function LandingPage() {
             <div className="w-12 h-12 rounded-xl bg-violet-50 border border-violet-100 flex items-center justify-center text-violet-600 mb-4">
               <Cpu className="w-6 h-6" />
             </div>
-            <h3 className="text-base font-bold text-slate-900">100% Free Local AI</h3>
+            <h3 className="text-base font-bold text-slate-900">Built-in Resume Analysis</h3>
             <p className="mt-2 text-xs text-slate-600 leading-relaxed">
-              Runs with Ollama local LLM or built-in intelligent NLP rules. Zero paid API keys, zero subscriptions, complete data privacy.
+              Scores resume sections, checks recognized skills and job keywords, and suggests evidence-based improvements. No Ollama, model download, or external AI API is required.
             </p>
           </div>
         </div>

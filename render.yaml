@@ -20,9 +20,3 @@ services:
         value: /tmp/resumemate-uploads
       - key: MAX_UPLOAD_SIZE_MB
         value: 10
-      - key: OLLAMA_BASE_URL
-        value: http://localhost:11434
-      - key: OLLAMA_API_KEY
-        sync: false
-      - key: OLLAMA_MODEL
-        value: llama3.2

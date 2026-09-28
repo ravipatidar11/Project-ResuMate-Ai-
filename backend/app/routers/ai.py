@@ -2,27 +2,26 @@ from fastapi import APIRouter, Depends
 from app.schemas.ai import (
     GenerateSummaryRequest, ImproveSummaryRequest, ImproveExperienceRequest,
     GenerateProjectDescRequest, GenerateBulletsRequest, ImproveSkillsRequest,
-    MakeAtsFriendlyRequest, AIResponse, OllamaStatusResponse
+    MakeAtsFriendlyRequest, AIResponse, AnalysisEngineStatus
 )
 from app.services.ai_service import AIService
 from app.services.ai_analyzer import AIAnalyzer
 from app.models.user import User
 from app.services.auth_service import get_current_user
 
-router = APIRouter(prefix="/ai", tags=["AI Engine (Ollama & Free NLP)"])
+router = APIRouter(prefix="/ai", tags=["Resume Analysis & Writing Tools"])
 
-@router.get("/status", response_model=OllamaStatusResponse)
-async def check_ollama_status():
-    """Check connectivity to free local Ollama LLM service."""
-    status_info = await AIService.check_ollama_status()
-    return status_info
+@router.get("/status", response_model=AnalysisEngineStatus)
+def check_analysis_status():
+    """Report the built-in rules engine; this does not contact an AI service."""
+    return AIService.get_engine_status()
 
 @router.post("/generate-summary", response_model=AIResponse)
 async def generate_summary(
     req: GenerateSummaryRequest,
     current_user: User = Depends(get_current_user)
 ):
-    """Generate high-impact professional summary for a target role."""
+    """Create a summary draft from the supplied role, skills, and experience details."""
     data = await AIService.generate_summary(
         role=req.role,
         experience_level=req.experience_level,
@@ -36,7 +35,7 @@ async def improve_summary(
     req: ImproveSummaryRequest,
     current_user: User = Depends(get_current_user)
 ):
-    """Improve existing summary tone, conciseness, and ATS power."""
+    """Clean up an existing summary without adding new claims."""
     data = await AIService.improve_summary(
         current_summary=req.summary,
         target_role=req.target_role
@@ -48,7 +47,7 @@ async def improve_experience(
     req: ImproveExperienceRequest,
     current_user: User = Depends(get_current_user)
 ):
-    """Upgrade experience bullet points to XYZ metric-driven formula."""
+    """Make simple wording cleanups while preserving supplied experience claims."""
     data = await AIService.improve_experience(
         role=req.role,
         company=req.company,
@@ -61,7 +60,7 @@ async def generate_project_desc(
     req: GenerateProjectDescRequest,
     current_user: User = Depends(get_current_user)
 ):
-    """Generate project bullet points highlighting architecture and impact."""
+    """Prepare project bullet drafts from the supplied title, technologies, and overview."""
     data = await AIService.generate_project_description(
         title=req.title,
         technologies=req.technologies,
@@ -74,7 +73,7 @@ async def generate_bullets(
     req: GenerateBulletsRequest,
     current_user: User = Depends(get_current_user)
 ):
-    """Generate job-specific bullet points on demand."""
+    """Return role-based bullet templates with placeholders for verified details."""
     data = await AIService.generate_bullets(
         role=req.role,
         industry=req.industry or "Tech",
@@ -88,7 +87,7 @@ async def improve_skills(
     req: ImproveSkillsRequest,
     current_user: User = Depends(get_current_user)
 ):
-    """Suggest high-value skills matching candidate's target role."""
+    """Suggest role-based skill examples for the candidate to verify."""
     data = await AIAnalyzer.suggest_skills(
         current_skills=req.current_skills,
         target_role=req.target_role
@@ -100,7 +99,7 @@ async def make_ats_friendly(
     req: MakeAtsFriendlyRequest,
     current_user: User = Depends(get_current_user)
 ):
-    """Audit and optimize resume content for ATS parser standards."""
+    """Review resume content against built-in ATS and keyword checks."""
     report = await AIAnalyzer.analyze_resume(
         req.text or "",
         target_role=(req.resume_data or {}).get("target_role", ""),
@@ -117,6 +116,5 @@ async def make_ats_friendly(
             "reasons": ats.get("reasons", []),
             "ai_report": report,
         },
-        "model_used": f"Ollama ({report['model']})",
-        "is_local_llm": True,
+        "model_used": "Built-in Resume Analysis Rules",
     }

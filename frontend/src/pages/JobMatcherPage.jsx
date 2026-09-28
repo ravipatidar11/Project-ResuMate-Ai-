@@ -111,7 +111,7 @@ export default function JobMatcherPage() {
           Job Description Matcher & Tailor
         </h1>
         <p className="text-sm text-slate-500 mt-1">
-          Paste any job posting to analyze skill alignment, detect keyword gaps, and generate tailored resume bullet points.
+          Paste a job posting to compare recognized skills, find keyword gaps, and review relevant existing resume bullets.
         </p>
       </div>
 
@@ -228,7 +228,7 @@ export default function JobMatcherPage() {
                   className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs text-white bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 shadow-md shadow-indigo-200 transition-all hover:scale-105 shrink-0"
                 >
                   <Wand2 className="w-4 h-4" />
-                  <span>Optimize Resume for This Job</span>
+                  <span>Review Job-Focused Suggestions</span>
                 </button>}
               </div>
 
@@ -274,14 +274,14 @@ export default function JobMatcherPage() {
           {matchResult.ai_report?.job_match && (
             <section className="space-y-4 rounded-3xl border border-indigo-100 bg-white p-5 shadow-sm sm:p-7">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                <div><h2 className="text-lg font-extrabold text-slate-900">{matchResult.ai_report.job_match_fallback ? 'Keyword Match Estimate' : 'AI Semantic Match Review'}</h2><p className="mt-1 text-xs text-slate-500">{matchResult.ai_report.job_match_fallback ? 'Keyword overlap only; semantic equivalence was not assessed.' : `${matchResult.ai_report.provider} / ${matchResult.ai_report.model}`}</p></div>
+                <div><h2 className="text-lg font-extrabold text-slate-900">Job Keyword Match Estimate</h2><p className="mt-1 text-xs text-slate-500">Recognized keyword overlap only; semantic equivalence is not assessed.</p></div>
                 <p className="max-w-2xl text-xs leading-relaxed text-slate-600">{matchResult.ai_report.job_match.explanation}</p>
               </div>
               {!matchResult.ai_report.job_match_fallback && <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
                 {Object.entries(matchResult.ai_report.job_match.scores || {}).map(([key, score]) => <div key={key} className="rounded-xl border border-slate-200 p-3"><div className="flex justify-between gap-2"><span className="text-xs font-bold capitalize text-slate-800">{key.replaceAll('_', ' ')}</span><span className="text-sm font-extrabold text-indigo-700">{score.score}</span></div><p className="mt-1.5 text-[11px] leading-relaxed text-slate-600">{score.explanation}</p></div>)}
               </div>}
               <div className="grid gap-4 border-t border-slate-100 pt-4 sm:grid-cols-3">
-                {[['Important job skills', matchResult.ai_report.job_match.important_skills], ['Overlapping skills', matchResult.ai_report.job_match.overlapping_skills], ['Relevant gaps', matchResult.ai_report.job_match.missing_skills], ['Irrelevant resume content', matchResult.ai_report.job_match.irrelevant_content], ['Recommended changes', matchResult.ai_report.job_match.recommended_changes]].map(([title, items]) => <div key={title}><h3 className="text-xs font-bold text-slate-800">{title}</h3><ul className="mt-1.5 list-inside list-disc space-y-1 text-xs leading-relaxed text-slate-600">{(items || []).map((item, idx) => <li key={idx}>{item}</li>)}</ul></div>)}
+                {[['Important job skills', matchResult.ai_report.job_match.important_skills], ['Overlapping skills', matchResult.ai_report.job_match.overlapping_skills], ['Relevant gaps', matchResult.ai_report.job_match.missing_skills], ['Resume skills not found in posting', matchResult.ai_report.job_match.irrelevant_content], ['Recommended changes', matchResult.ai_report.job_match.recommended_changes]].map(([title, items]) => <div key={title}><h3 className="text-xs font-bold text-slate-800">{title}</h3><ul className="mt-1.5 list-inside list-disc space-y-1 text-xs leading-relaxed text-slate-600">{(items || []).map((item, idx) => <li key={idx}>{item}</li>)}</ul></div>)}
               </div>
             </section>
           )}
@@ -331,20 +331,20 @@ export default function JobMatcherPage() {
       <Modal
         isOpen={optimizeModalOpen}
         onClose={() => setOptimizeModalOpen(false)}
-        title="AI Resume Tailor & Optimizer"
+        title="Resume Suggestions for This Job"
         maxWidth="max-w-3xl"
       >
         {optimizing ? (
           <div className="p-12 text-center space-y-3">
             <RefreshCw className="w-8 h-8 text-indigo-600 animate-spin mx-auto" />
-            <p className="text-sm font-bold text-slate-800">Generating tailored summary & bullet points...</p>
+            <p className="text-sm font-bold text-slate-800">Preparing job-focused resume suggestions...</p>
           </div>
         ) : optimizedData ? (
           <div className="space-y-5 text-xs text-slate-800">
             {/* Suggested Summary */}
             <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
               <div className="flex justify-between items-center">
-                <span className="font-bold text-slate-900 uppercase">Tailored Professional Summary:</span>
+                <span className="font-bold text-slate-900 uppercase">Suggested Professional Summary:</span>
                 <button
                   onClick={() => handleCopy(optimizedData.suggested_summary, 'summary')}
                   className="flex items-center gap-1 text-xs font-bold text-indigo-600 hover:text-indigo-800"
@@ -360,7 +360,7 @@ export default function JobMatcherPage() {
 
             {/* Suggested Bullets */}
             <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
-              <span className="font-bold text-slate-900 uppercase">Tailored Experience Bullet Points:</span>
+              <span className="font-bold text-slate-900 uppercase">Relevant Existing Resume Bullets:</span>
               <div className="space-y-2">
                 {(optimizedData.suggested_bullet_points || []).map((b, idx) => (
                   <div key={idx} className="flex items-start justify-between gap-3 bg-white p-2.5 rounded-lg border border-slate-200">

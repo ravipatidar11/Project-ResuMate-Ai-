@@ -5,10 +5,9 @@ import { Sparkles, Check, RefreshCw, Zap, ShieldCheck } from 'lucide-react';
 export default function AIModal({
   isOpen,
   onClose,
-  title = 'AI Resume Enhancement',
+  title = 'Resume Writing Suggestions',
   initialContent = '',
-  modelUsed = 'Free Local AI',
-  isLocalLlm = false,
+  modelUsed = 'Built-in Resume Writing Rules',
   suggestions = [],
   onApply,
   onRegenerate,
@@ -37,7 +36,7 @@ export default function AIModal({
             <div>
               <p className="text-xs font-bold text-slate-900">{modelUsed}</p>
               <p className="text-[11px] text-slate-500">
-                {isLocalLlm ? 'Powered by local Ollama LLM' : 'Powered by built-in Free NLP Engine'}
+                Uses your resume details and built-in writing rules
               </p>
             </div>
           </div>
@@ -50,7 +49,7 @@ export default function AIModal({
         {/* Editable Output */}
         <div>
           <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
-            Review & Edit AI Generated Content:
+            Review and edit the suggested content:
           </label>
           {loading ? (
             <div className="h-48 rounded-xl border border-dashed border-indigo-300 bg-indigo-50/40 flex flex-col items-center justify-center gap-3">
@@ -63,7 +62,7 @@ export default function AIModal({
               value={content}
               onChange={(e) => setContent(e.target.value)}
               className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 text-sm font-mono leading-relaxed bg-white text-slate-800 shadow-inner resize-y"
-              placeholder="AI generated content will appear here..."
+              placeholder="Resume writing suggestions will appear here..."
             />
           )}
           <p className="text-xs text-slate-500 mt-1.5 italic">
@@ -76,7 +75,7 @@ export default function AIModal({
           <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 space-y-1.5">
             <div className="flex items-center gap-1.5 text-xs font-bold text-amber-900">
               <ShieldCheck className="w-4 h-4 text-amber-600" />
-              <span>ATS Expert Recommendations:</span>
+              <span>Review suggestions:</span>
             </div>
             <ul className="text-xs text-amber-800 space-y-1 list-disc list-inside">
               {suggestions.map((s, idx) => (

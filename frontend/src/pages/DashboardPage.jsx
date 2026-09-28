@@ -178,9 +178,9 @@ export default function DashboardPage() {
         {/* Metric 4 */}
         <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs flex items-center justify-between">
           <div>
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">AI Optimizer</p>
+            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Resume Suggestions</p>
             <p className="text-sm font-extrabold text-indigo-600 mt-1">100% Free</p>
-            <p className="text-[11px] text-slate-400 mt-0.5">Ollama & NLP active</p>
+            <p className="text-[11px] text-slate-400 mt-0.5">Built-in analysis active</p>
           </div>
           <div className="w-12 h-12 rounded-xl bg-violet-50 text-violet-600 flex items-center justify-center">
             <Sparkles className="w-6 h-6" />
@@ -367,7 +367,7 @@ export default function DashboardPage() {
                     <span className="px-2.5 py-1 rounded-lg text-xs font-extrabold bg-indigo-100 text-indigo-800">
                       {jm.ai_report?.job_match_status === 'insufficient_requirements'
                         ? 'Insufficient data'
-                        : jm.ai_report?.job_match_fallback
+                        : jm.ai_report?.job_match_fallback || jm.ai_report?.provider === 'Built-in Resume Analysis'
                           ? `Keyword estimate · ${jm.match_percentage}%`
                           : `${jm.match_percentage}%`}
                     </span>

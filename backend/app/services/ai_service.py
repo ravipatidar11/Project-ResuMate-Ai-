@@ -1,417 +1,184 @@
+"""Offline resume-writing helpers based on user-provided text and role keywords."""
+
 import re
-import json
-import logging
-from typing import Dict, Any, List, Optional
-import httpx
-from app.config import settings
+from typing import Any, Dict, List, Optional
 
-logger = logging.getLogger(__name__)
 
-# Action verbs and quantifiable templates for intelligent offline generation
-ACTION_VERBS = [
-    "Spearheaded", "Architected", "Engineered", "Optimized", "Implemented", "Orchestrated",
-    "Streamlined", "Accelerated", "Delivered", "Automated", "Standardized", "Pioneered",
-    "Revamped", "Designed", "Formulated", "Supervised", "Transformed", "Facilitated"
-]
-
-ROLE_TEMPLATES = {
-    "software engineer": {
-        "summary": "Results-oriented Software Engineer with proven expertise in building high-performance, fault-tolerant distributed systems and modern web applications. Skilled in clean architecture, microservices, and CI/CD pipelines with a steadfast focus on scalability and developer productivity.",
-        "skills": ["Python", "FastAPI", "React", "TypeScript", "Docker", "PostgreSQL", "System Design", "Git", "REST APIs", "CI/CD"],
-        "bullets": [
-            "Architected and deployed distributed backend microservices handling 25,000+ daily requests with 99.95% service availability.",
-            "Refactored mission-critical database queries and added Redis caching, decreasing median API response times by 42%.",
-            "Instituted automated end-to-end and unit testing pipelines in GitHub Actions, increasing test coverage from 60% to 92%.",
-            "Spearheaded the migration of legacy monolith architecture to Docker containers, trimming deployment cycle duration by 65%."
-        ]
-    },
-    "frontend developer": {
-        "summary": "Creative and user-centric Frontend Developer with extensive experience crafting responsive, accessible, and pixel-perfect web interfaces. Adept in React, Tailwind CSS, performance optimization, and seamless RESTful integration.",
-        "skills": ["React", "JavaScript", "TypeScript", "Tailwind CSS", "HTML5", "CSS3", "Redux", "Webpack/Vite", "Responsive Design", "Jest"],
-        "bullets": [
-            "Developed responsive user interfaces across 15+ web modules using React and Tailwind CSS, increasing user engagement by 28%.",
-            "Implemented lazy loading, code-splitting, and memoization techniques to achieve a 95+ Google Lighthouse performance score.",
-            "Collaborated with UX/UI designers and backend engineers to translate Figma wireframes into reusable, accessible design systems.",
-            "Integrated real-time state management and web sockets, reducing client-side sync latency by 50%."
-        ]
-    },
-    "full stack developer": {
-        "summary": "Versatile Full-Stack Developer proficient in end-to-end application lifecycle management, from modern frontend UIs to robust server architectures and relational/NoSQL databases. Dedicated to shipping scalable and secure software.",
-        "skills": ["React", "Node.js", "Python", "FastAPI", "PostgreSQL", "Docker", "Git", "Tailwind CSS", "AWS", "REST APIs"],
-        "bullets": [
-            "Built and scaled full-stack web applications from ideation to production, supporting 10,000+ active monthly users.",
-            "Designed and implemented secure RESTful endpoints with JWT authentication and strict input validation schemas.",
-            "Established CI/CD deployment pipelines using Docker and cloud hosting, ensuring seamless zero-downtime releases.",
-            "Optimized frontend bundle sizes and database query indices, achieving a 38% decrease in overall end-to-end latency."
-        ]
-    },
-    "data scientist": {
-        "summary": "Analytical Data Scientist with strong foundational skills in statistical modeling, machine learning algorithms, and predictive analytics. Passionate about uncovering actionable business insights from large-scale structured and unstructured datasets.",
-        "skills": ["Python", "Pandas", "NumPy", "Scikit-Learn", "TensorFlow", "SQL", "Data Visualization", "Tableau", "Git", "Statistical Analysis"],
-        "bullets": [
-            "Formulated and trained predictive machine learning classification models yielding an 89% F1-score on customer churn analytics.",
-            "Engineered ETL pipelines processing 2M+ records daily with automated data validation checks.",
-            "Visualized multi-dimensional data patterns and key business metrics using interactive dashboards for executive stakeholders.",
-            "Conducted statistical A/B tests to optimize user conversion funnels, driving a 14% improvement in trial conversions."
-        ]
-    }
+ROLE_SKILLS = {
+    "software engineer": ["Python", "Java", "SQL", "Git", "REST API", "Docker", "Testing"],
+    "frontend developer": ["JavaScript", "TypeScript", "React", "HTML", "CSS", "Accessibility", "Testing"],
+    "full stack developer": ["JavaScript", "React", "Python", "SQL", "REST API", "Docker", "Git"],
+    "data scientist": ["Python", "SQL", "Statistics", "Machine Learning", "Pandas", "Data Visualization"],
+    "project manager": ["Project Management", "Agile", "Communication", "Leadership", "Planning"],
+    "product manager": ["Product Management", "Product Strategy", "Analytics", "Communication", "Roadmapping"],
+    "marketing": ["Content Marketing", "SEO", "Analytics", "Communication", "Campaign Management"],
+    "accountant": ["Accounting", "Financial Analysis", "Excel", "Auditing", "Attention to Detail"],
+    "business analyst": ["SQL", "Excel", "Requirements Analysis", "Data Visualization", "Communication"],
+    "ux designer": ["Figma", "User Research", "Prototyping", "Accessibility", "Usability Testing"],
+    "cybersecurity analyst": ["Network Security", "Linux", "Incident Response", "Risk Management", "Python"],
+    "sales representative": ["CRM", "Negotiation", "Communication", "Account Management", "Sales"],
+    "human resources": ["Recruitment", "Employee Relations", "Communication", "HR Management", "Training"],
+    "teacher": ["Curriculum Development", "Communication", "Classroom Management", "Assessment", "Training"],
+    "nurse": ["Patient Care", "Clinical Documentation", "Communication", "Time Management", "Healthcare"],
+}
+ROLE_ALIASES = {
+    "software engineer": ("software", "backend", "back end", "api developer", "java developer", "python developer"),
+    "frontend developer": ("frontend", "front end", "ui developer", "react developer", "web developer"),
+    "full stack developer": ("full stack", "fullstack"),
+    "data scientist": ("data scientist", "data science", "data analyst", "machine learning"),
+    "project manager": ("project manager", "program manager", "delivery manager"),
+    "product manager": ("product manager", "product owner"),
+    "marketing": ("marketing", "seo", "content marketer", "digital marketer"),
+    "accountant": ("accountant", "accounting", "finance analyst"),
+    "business analyst": ("business analyst", "business intelligence"),
+    "ux designer": ("ux designer", "ui designer", "product designer"),
+    "cybersecurity analyst": ("cybersecurity", "security analyst", "information security"),
+    "sales representative": ("sales", "account executive", "business development"),
+    "human resources": ("human resources", "hr manager", "recruiter", "talent acquisition"),
+    "teacher": ("teacher", "educator", "instructor"),
+    "nurse": ("nurse", "nursing", "clinical nurse"),
 }
 
+
 class AIService:
+    """Provide predictable resume suggestions without a remote model connection."""
+
     @staticmethod
-    async def check_ollama_status() -> Dict[str, Any]:
-        """Check if local Ollama instance is available and which models are installed."""
-        try:
-            # Cloud-hosted Ollama may be reached through a sleeping Render instance
-            # and a home-computer tunnel, so allow time for that path to wake up.
-            async with httpx.AsyncClient(timeout=httpx.Timeout(15.0, connect=8.0)) as client:
-                res = await client.get(
-                    f"{settings.OLLAMA_BASE_URL}/api/tags",
-                    headers={"Authorization": f"Bearer {settings.OLLAMA_API_KEY}"} if settings.OLLAMA_API_KEY else None,
-                )
-                if res.status_code == 200:
-                    data = res.json()
-                    models = [m.get("name") for m in data.get("models", []) if m.get("name")]
-                    configured_model_found = any(
-                        name == settings.OLLAMA_MODEL or name.startswith(f"{settings.OLLAMA_MODEL}:")
-                        for name in models if name
-                    )
-                    return {
-                        "available": configured_model_found,
-                        "url": settings.OLLAMA_BASE_URL,
-                        "active_model": settings.OLLAMA_MODEL,
-                        "installed_models": models,
-                        "message": (
-                            f"Ollama is ready with {settings.OLLAMA_MODEL}."
-                            if configured_model_found
-                            else f"Ollama is running, but '{settings.OLLAMA_MODEL}' is missing. Run 'ollama pull {settings.OLLAMA_MODEL}'."
-                        )
-                    }
-                logger.warning("Ollama status probe returned HTTP %s", res.status_code)
-                return {
-                    "available": False,
-                    "url": settings.OLLAMA_BASE_URL,
-                    "active_model": settings.OLLAMA_MODEL,
-                    "installed_models": [],
-                    "message": (
-                        f"Ollama proxy returned HTTP {res.status_code}. Check that Render OLLAMA_API_KEY "
-                        "matches the Worker BACKEND_API_KEY, and that the Worker upstream token and tunnel are active."
-                    ),
-                }
-        except httpx.TimeoutException:
-            return {
-                "available": False,
-                "url": settings.OLLAMA_BASE_URL,
-                "active_model": settings.OLLAMA_MODEL,
-                "installed_models": [],
-                "message": "Timed out contacting Ollama. Check that the PC, Ollama, authenticated gateway, and Cloudflare tunnel are running.",
-            }
-        except httpx.HTTPError as exc:
-            logger.warning("Ollama status probe failed: %s", exc.__class__.__name__)
-            return {
-                "available": False,
-                "url": settings.OLLAMA_BASE_URL,
-                "active_model": settings.OLLAMA_MODEL,
-                "installed_models": [],
-                "message": "Could not reach the Ollama proxy. Check its Worker URL and active Cloudflare tunnel.",
-            }
-
+    def get_engine_status() -> Dict[str, Any]:
+        """Report the built-in analysis engine without contacting external services."""
         return {
-            "available": False,
-            "url": settings.OLLAMA_BASE_URL,
-            "active_model": settings.OLLAMA_MODEL,
-            "installed_models": [],
-            "message": f"Ollama is unavailable. Start the Ollama service and run 'ollama pull {settings.OLLAMA_MODEL}'. AI resume analysis requires the local model and will not return a fallback score."
+            "available": True,
+            "engine": "Built-in Resume Analysis Rules",
+            "message": "Resume analysis and writing suggestions use built-in rules and need no external model service.",
         }
-
-    @classmethod
-    async def query_ollama(cls, prompt: str, system_prompt: str = "") -> Optional[str]:
-        """Attempt to query local Ollama LLM."""
-        try:
-            payload = {
-                "model": settings.OLLAMA_MODEL,
-                "prompt": prompt,
-                "stream": False,
-                "options": {
-                    "temperature": 0.4
-                }
-            }
-            if system_prompt:
-                payload["system"] = system_prompt
-
-            async with httpx.AsyncClient(timeout=20.0) as client:
-                response = await client.post(
-                    f"{settings.OLLAMA_BASE_URL}/api/generate",
-                    json=payload,
-                    headers={"Authorization": f"Bearer {settings.OLLAMA_API_KEY}"} if settings.OLLAMA_API_KEY else None,
-                )
-                if response.status_code == 200:
-                    result = response.json()
-                    return result.get("response", "").strip()
-        except Exception as e:
-            logger.warning(f"Ollama call failed or timed out: {e}")
-        return None
 
     @classmethod
     async def generate_summary(
         cls,
         role: str,
         experience_level: str = "Mid-level",
-        key_skills: List[str] = None,
-        recent_experience: str = ""
+        key_skills: Optional[List[str]] = None,
+        recent_experience: str = "",
     ) -> Dict[str, Any]:
-        """Generate an impactful professional resume summary."""
-        key_skills = key_skills or []
-        skills_str = ", ".join(key_skills) if key_skills else "modern software engineering and problem-solving"
-        
-        # 1. Try Ollama local LLM
-        prompt = (
-            f"Generate a professional, high-impact 3-4 sentence resume summary for a {experience_level} {role or 'Professional'}.\n"
-            f"Key skills: {skills_str}.\n"
-            f"Recent background: {recent_experience or 'demonstrated excellence delivering reliable solutions'}.\n"
-            f"Keep it ATS-friendly, concise, avoiding first-person pronouns ('I', 'me'). Return ONLY the summary text."
-        )
-        ollama_res = await cls.query_ollama(prompt, "You are an expert executive resume writer and ATS optimization specialist.")
-        if ollama_res:
-            return {
-                "success": True,
-                "result": ollama_res,
-                "model_used": f"Ollama ({settings.OLLAMA_MODEL})",
-                "is_local_llm": True,
-                "suggestions": [
-                    "Ensure your years of experience in the summary match your work history.",
-                    "Highlight 2-3 specific technologies relevant to your target job."
-                ]
-            }
-
-        # 2. Intelligent Built-in Fallback
-        role_lower = role.lower()
-        matched_template = None
-        for k in ROLE_TEMPLATES:
-            if k in role_lower:
-                matched_template = ROLE_TEMPLATES[k]
-                break
-
-        if matched_template:
-            base_summary = matched_template["summary"]
-            if key_skills:
-                base_summary += f" Core competencies include {', '.join(key_skills[:5])}."
-        else:
-            base_summary = (
-                f"Results-driven and adaptable {experience_level} {role or 'Professional'} with a proven track record "
-                f"of designing, building, and optimizing scalable solutions. Demonstrates strong analytical proficiency, "
-                f"cross-functional collaboration, and technical expertise in {skills_str}. Committed to delivering "
-                f"measurable business impact and continuous operational improvement."
-            )
-
+        role = (role or "Professional").strip()
+        skills = list(dict.fromkeys(skill.strip() for skill in (key_skills or []) if skill.strip()))[:6]
+        first_sentence = f"{experience_level or 'Professional'} {role}"
+        if skills:
+            first_sentence += f" with experience in {', '.join(skills)}"
+        first_sentence += "."
+        parts = [first_sentence]
+        if recent_experience and recent_experience.strip():
+            parts.append(f"Recent experience includes {recent_experience.strip().rstrip('.')}.")
+        parts.append("Add a verified achievement and measurable result that show your impact.")
         return {
             "success": True,
-            "result": base_summary,
-            "model_used": "Built-in Free Intelligent NLP Engine",
-            "is_local_llm": False,
-            "suggestions": [
-                "Tailor keywords to match the exact requirements of your target job description.",
-                "Quantify notable accomplishments wherever applicable."
-            ]
+            "result": " ".join(parts),
+            "model_used": "Built-in Resume Writing Rules",
+            "suggestions": ["Replace or edit every placeholder-style prompt with details you can verify."],
         }
 
     @classmethod
     async def improve_summary(cls, current_summary: str, target_role: str = "") -> Dict[str, Any]:
-        """Improve and polish an existing summary with stronger verbs and ATS keywords."""
-        if not current_summary.strip():
-            return await cls.generate_summary(role=target_role or "Professional")
-
-        prompt = (
-            f"Enhance and rewrite this resume summary for ATS compatibility, active voice, and professional impact:\n"
-            f"'{current_summary}'\n"
-            f"Target role: {target_role or 'General'}.\n"
-            f"Rules: Eliminate fluff/buzzwords, keep it 3-4 punchy sentences, remove 'I/me'. Return ONLY the revised summary."
-        )
-        ollama_res = await cls.query_ollama(prompt)
-        if ollama_res:
-            return {
-                "success": True,
-                "result": ollama_res,
-                "model_used": f"Ollama ({settings.OLLAMA_MODEL})",
-                "is_local_llm": True
-            }
-
-        # Heuristic enhancement
-        revised = current_summary.strip()
-        # Remove weak starters
-        revised = re.sub(r'^(I am a|I have|Looking for a job as a|A hard working)\s*', '', revised, flags=re.IGNORECASE)
-        revised = revised[0].upper() + revised[1:] if revised else ""
-        if not revised.endswith('.'):
-            revised += '.'
-        
-        enhanced = (
-            f"Accomplished {target_role or 'professional'} with a proven record of driving operational excellence. "
-            f"{revised} Proven ability to identify bottlenecks, execute technical solutions, and partner with stakeholders to meet strategic milestones."
-        )
-
-        return {
-            "success": True,
-            "result": enhanced,
-            "model_used": "Built-in Free Intelligent NLP Engine",
-            "is_local_llm": False
-        }
+        summary = (current_summary or "").strip()
+        if not summary:
+            return await cls.generate_summary(target_role or "Professional")
+        summary = re.sub(r"^(?:I am|I'm|I have been|I have|My goal is to be)\s+", "", summary, flags=re.IGNORECASE)
+        summary = re.sub(r"\s+", " ", summary).strip()
+        if summary and summary[0].islower():
+            summary = summary[0].upper() + summary[1:]
+        suggestions = ["Review this cleaned-up version and keep only statements that accurately describe your experience."]
+        if target_role and target_role.lower() not in summary.lower():
+            suggestions.append(f"Consider naming '{target_role}' if that is the role you are targeting.")
+        if not re.search(r"\d", summary):
+            suggestions.append("Add a verified number or outcome if you have one; do not estimate or invent metrics.")
+        return {"success": True, "result": summary, "model_used": "Built-in Resume Writing Rules", "suggestions": suggestions}
 
     @classmethod
-    async def improve_experience(
-        cls,
-        role: str,
-        company: str,
-        bullets: List[str]
-    ) -> Dict[str, Any]:
-        """Rewrite and enhance experience bullet points with metric-driven XYZ formulas."""
-        prompt = (
-            f"Enhance these resume bullets for role '{role}' at '{company}'.\n"
-            f"Format using Google's X-Y-Z formula (Accomplished [X] as measured by [Y], by doing [Z]).\n"
-            f"Use strong action verbs, quantify impact where reasonable, and ensure ATS readability.\n"
-            f"Input bullets:\n" + "\n".join(f"- {b}" for b in bullets) + "\n"
-            f"Output ONLY the revised bullets as a bulleted list starting with '- '."
+    async def improve_experience(cls, role: str, company: str, bullets: List[str]) -> Dict[str, Any]:
+        replacements = (
+            (r"^responsible for\s+", "Managed "),
+            (r"^worked on\s+", "Contributed to "),
+            (r"^helped (?:with|to)\s+", "Supported "),
+            (r"^assisted (?:with|in)\s+", "Supported "),
+            (r"^involved in\s+", "Contributed to "),
+            (r"^handled\s+", "Managed "),
         )
-        ollama_res = await cls.query_ollama(prompt)
-        if ollama_res:
-            lines = [line.lstrip('-*• ').strip() for line in ollama_res.splitlines() if line.strip()]
-            return {
-                "success": True,
-                "result": lines,
-                "model_used": f"Ollama ({settings.OLLAMA_MODEL})",
-                "is_local_llm": True
-            }
-
-        # Heuristic improvement
         improved = []
-        action_idx = 0
-        for b in bullets:
-            b_clean = b.strip()
-            if not b_clean:
+        for raw in bullets or []:
+            bullet = (raw or "").strip().lstrip("-*• ").strip()
+            if not bullet:
                 continue
-            # Remove passive verbs
-            b_clean = re.sub(r'^(Responsible for|Handled|Worked on|Assisted in|Helped with)\s*', '', b_clean, flags=re.IGNORECASE)
-            verb = ACTION_VERBS[action_idx % len(ACTION_VERBS)]
-            action_idx += 1
-            
-            # If bullet lacks quantifiable metrics, suggest realistic metrics
-            if not any(char in b_clean for char in ["%", "$", "+", "k", "M"]):
-                b_clean = f"{verb} {b_clean[0].lower() + b_clean[1:] if b_clean else ''}, driving a 25% increase in team throughput and system reliability."
-            else:
-                b_clean = f"{verb} {b_clean[0].lower() + b_clean[1:] if b_clean else ''}."
-            improved.append(b_clean)
-
-        if not improved:
-            role_key = next((k for k in ROLE_TEMPLATES if k in role.lower()), "software engineer")
-            improved = ROLE_TEMPLATES[role_key]["bullets"]
-
+            for pattern, replacement in replacements:
+                if re.match(pattern, bullet, re.IGNORECASE):
+                    bullet = re.sub(pattern, replacement, bullet, count=1, flags=re.IGNORECASE)
+                    break
+            if bullet and bullet[0].islower():
+                bullet = bullet[0].upper() + bullet[1:]
+            if bullet and bullet[-1] not in ".!?":
+                bullet += "."
+            improved.append(bullet)
         return {
             "success": True,
             "result": improved,
-            "model_used": "Built-in Free Intelligent NLP Engine",
-            "is_local_llm": False
+            "model_used": "Built-in Resume Writing Rules",
+            "suggestions": ["Add verified scope or outcomes to relevant bullets; no metrics have been invented."],
         }
 
     @classmethod
-    async def generate_project_description(
-        cls,
-        title: str,
-        technologies: List[str],
-        overview: Optional[str] = ""
-    ) -> Dict[str, Any]:
-        """Generate high-impact project bullets highlighting architecture, stack, and outcomes."""
-        tech_str = ", ".join(technologies) if technologies else "Modern Web Technologies"
-        prompt = (
-            f"Generate 3 crisp, professional resume bullet points for a project titled '{title}'.\n"
-            f"Tech stack: {tech_str}.\n"
-            f"Overview: {overview or 'End-to-end full-stack software application'}.\n"
-            f"Highlight architecture, problem solved, and key features. Return ONLY a bulleted list starting with '- '."
-        )
-        ollama_res = await cls.query_ollama(prompt)
-        if ollama_res:
-            lines = [line.lstrip('-*• ').strip() for line in ollama_res.splitlines() if line.strip()]
-            return {
-                "success": True,
-                "result": lines,
-                "model_used": f"Ollama ({settings.OLLAMA_MODEL})",
-                "is_local_llm": True
-            }
-
-        bullets = [
-            f"Architected and deployed {title} utilizing {tech_str}, delivering a responsive, secure, and user-centric experience.",
-            f"Implemented automated state management and RESTful APIs, optimizing data fetching efficiency by 40%.",
-            f"Integrated comprehensive test coverage and CI/CD pipelines, ensuring reliable build and zero-downtime deployment."
-        ]
+    async def generate_project_description(cls, title: str, technologies: List[str], overview: Optional[str] = "") -> Dict[str, Any]:
+        title = (title or "Project").strip()
+        tech = list(dict.fromkeys(value.strip() for value in (technologies or []) if value.strip()))[:8]
+        overview = (overview or "").strip()
+        bullets = []
+        if overview:
+            bullets.append(f"{overview.rstrip('.')} as part of {title}.")
+        if tech:
+            bullets.append(f"Used {', '.join(tech)} to build or support {title}; specify the parts you personally delivered.")
+        if not bullets:
+            bullets.append(f"Describe the problem solved, your contribution, and verified outcome for {title}.")
         return {
             "success": True,
             "result": bullets,
-            "model_used": "Built-in Free Intelligent NLP Engine",
-            "is_local_llm": False
+            "model_used": "Built-in Resume Writing Rules",
+            "suggestions": ["Add only features and results that are accurate for this project."],
         }
 
     @classmethod
-    async def generate_bullets(
-        cls,
-        role: str,
-        industry: str = "Tech",
-        keywords: List[str] = None,
-        count: int = 4
-    ) -> Dict[str, Any]:
-        """Generate role-tailored bullet points on demand."""
-        keywords = keywords or []
-        kw_str = ", ".join(keywords) if keywords else "scalability, performance, collaboration"
-        prompt = (
-            f"Generate {count} strong resume bullet points for a '{role}' in {industry}.\n"
-            f"Incorporate these keywords: {kw_str}.\n"
-            f"Use strong action verbs and quantifiable metrics. Return ONLY bullets starting with '- '."
-        )
-        ollama_res = await cls.query_ollama(prompt)
-        if ollama_res:
-            lines = [line.lstrip('-*• ').strip() for line in ollama_res.splitlines() if line.strip()]
-            return {
-                "success": True,
-                "result": lines,
-                "model_used": f"Ollama ({settings.OLLAMA_MODEL})",
-                "is_local_llm": True
-            }
-
-        role_key = next((k for k in ROLE_TEMPLATES if k in role.lower()), "software engineer")
+    async def generate_bullets(cls, role: str, industry: str = "Tech", keywords: Optional[List[str]] = None, count: int = 4) -> Dict[str, Any]:
+        role = (role or "target role").strip()
+        keywords = list(dict.fromkeys(word.strip() for word in (keywords or []) if word.strip()))[:5]
+        focus = f" using {', '.join(keywords)}" if keywords else ""
+        templates = [
+            f"For a {role}, describe how you delivered [specific responsibility or project]{focus} and the verified result.",
+            f"Improved [process, product, or service] by [verified amount] through [your specific action]{focus}.",
+            f"Collaborated with [team or stakeholders] to complete [specific goal] for [customer or business need].",
+            f"Applied [verified skill or tool] to resolve [specific challenge], resulting in [measurable outcome if known].",
+        ]
         return {
             "success": True,
-            "result": ROLE_TEMPLATES[role_key]["bullets"][:count],
-            "model_used": "Built-in Free Intelligent NLP Engine",
-            "is_local_llm": False
+            "result": templates[:max(1, min(count, len(templates)))],
+            "model_used": "Built-in Resume Writing Rules",
+            "suggestions": ["Replace bracketed prompts with your own verified details before adding a bullet to your resume."],
         }
 
     @classmethod
-    async def improve_skills_section(
-        cls,
-        current_skills: Any,
-        target_role: str = ""
-    ) -> Dict[str, Any]:
-        """Suggest trending, high-impact skills tailored to candidate's target role."""
-        role_key = next((k for k in ROLE_TEMPLATES if k in target_role.lower()), "software engineer")
-        suggested = ROLE_TEMPLATES[role_key]["skills"]
-
-        existing_flat = []
+    async def improve_skills_section(cls, current_skills: Any, target_role: str = "") -> Dict[str, Any]:
+        role = re.sub(r"[^a-z0-9]+", " ", (target_role or "").strip().lower())
+        role_skills = next((values for role_name, values in ROLE_SKILLS.items() if any(alias in role for alias in ROLE_ALIASES.get(role_name, (role_name,)))), [])
+        current = []
         if isinstance(current_skills, dict):
-            for k, v in current_skills.items():
-                if isinstance(v, list):
-                    existing_flat.extend([str(x).lower() for x in v])
+            for values in current_skills.values():
+                current.extend(values if isinstance(values, list) else [])
         elif isinstance(current_skills, list):
-            existing_flat = [str(x).lower() for x in current_skills]
-
-        missing_suggestions = [s for s in suggested if s.lower() not in existing_flat]
-
+            current = current_skills
+        existing = {str(value).lower() for value in current}
+        suggestions = [value for value in role_skills if value.lower() not in existing]
         return {
             "success": True,
             "result": {
-                "suggested_additions": missing_suggestions or ["Docker", "Kubernetes", "CI/CD", "TypeScript", "GraphQL"],
-                "recommended_structure": {
-                    "Technical Skills": ["Languages", "Frameworks", "Databases"],
-                    "Tools & DevOps": ["Git", "Docker", "Cloud (AWS/GCP)", "CI/CD"],
-                    "Soft Skills": ["Cross-functional Teamwork", "Technical Leadership", "Agile/Scrum"]
-                }
+                "suggested_additions": suggestions[:10],
+                "recommended_structure": {"Technical Skills": ["Languages", "Frameworks", "Databases"], "Tools & Platforms": ["Tools you have used"], "Soft Skills": ["Strengths supported by experience"]},
             },
-            "model_used": "Built-in Free Intelligent NLP Engine",
-            "is_local_llm": False
+            "model_used": "Built-in Resume Writing Rules",
+            "suggestions": ["These are role-based examples, not verified skills. Add only skills you actually have."],
         }

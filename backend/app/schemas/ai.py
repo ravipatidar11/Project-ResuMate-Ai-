@@ -39,13 +39,10 @@ class AIResponse(BaseModel):
     success: bool = True
     result: Any
     suggestions: List[str] = Field(default_factory=list)
-    model_used: str = "Ollama (local) / Intelligent NLP Engine"
-    is_local_llm: bool = False
+    model_used: str = "Built-in Resume Analysis Rules"
     message: Optional[str] = None
 
-class OllamaStatusResponse(BaseModel):
+class AnalysisEngineStatus(BaseModel):
     available: bool
-    url: str
-    active_model: str
-    installed_models: List[str] = Field(default_factory=list)
+    engine: str
     message: str

@@ -19,13 +19,15 @@ async def match_job_description(
 ):
     """Compare a resume against a target job description and return similarity score, skill gaps, and suggestions."""
     if not req.job_description.strip():
-        raise HTTPException(status_code=422, detail="Paste a job description before running the semantic match.")
+        raise HTTPException(status_code=422, detail="Paste a job description before running the keyword match.")
     resume_dict = {}
+    target_role = req.job_title or ""
     if req.resume_id:
         resume = db.query(Resume).filter(Resume.id == req.resume_id, Resume.user_id == current_user.id).first()
         if resume:
             resume_dict = {
                 "personal_info": resume.personal_info or {},
+                "target_role": resume.target_role or "",
                 "summary": resume.summary or "",
                 "education": resume.education or [],
                 "experience": resume.experience or [],
@@ -57,8 +59,6 @@ async def match_job_description(
     )
     ai_match = report.get("job_match")
     insufficient_requirements = report.get("job_match_status") == "insufficient_requirements"
-    if not isinstance(ai_match, dict) and not insufficient_requirements:
-        raise HTTPException(status_code=502, detail="The local AI did not return job-match results. Please retry.")
 
     overlapping = [str(skill) for skill in (ai_match or {}).get("overlapping_skills", [])]
     missing = [str(skill) for skill in (ai_match or {}).get("missing_skills", [])]
@@ -78,8 +78,8 @@ async def match_job_description(
             for skill in dict.fromkeys(important + overlapping + missing)
         ],
         "experience_match": {
-            "requiredYears": "AI contextual assessment",
-            "candidateYears": "See resume evidence",
+            "requiredYears": "Not assessed by keyword rules",
+            "candidateYears": "See listed resume dates",
             "assessment": (ai_match or {}).get("explanation", "No recognized requirements were found in the job description."),
             "scores": (ai_match or {}).get("scores", {}),
         },
@@ -124,13 +124,14 @@ async def optimize_resume(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Generate fact-preserving job-specific suggestions with the local model."""
+    """Return fact-preserving keyword-based job suggestions."""
     resume_dict = req.current_resume_data or {}
     if req.resume_id and not resume_dict:
         resume = db.query(Resume).filter(Resume.id == req.resume_id, Resume.user_id == current_user.id).first()
         if resume:
             resume_dict = {
                 "personal_info": resume.personal_info or {},
+                "target_role": resume.target_role or "",
                 "summary": resume.summary or "",
                 "education": resume.education or [],
                 "experience": resume.experience or [],

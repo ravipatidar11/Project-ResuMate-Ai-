@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { uploadAPI } from '../api/upload';
 import { atsAPI } from '../api/ats';
-import { aiAPI } from '../api/ai';
 import { resumesAPI } from '../api/resumes';
 import { useToast } from '../context/ToastContext';
 import ScoreMeter from '../components/common/ScoreMeter';
@@ -36,7 +35,6 @@ export default function ResumeAnalyzerPage() {
   const [userResumes, setUserResumes] = useState([]);
   const [selectedResumeId, setSelectedResumeId] = useState('');
   const [loading, setLoading] = useState(false);
-  const [ollamaStatus, setOllamaStatus] = useState(null);
   const [analysisResult, setAnalysisResult] = useState(null);
   const [createdResumeId, setCreatedResumeId] = useState(null);
 
@@ -50,7 +48,6 @@ export default function ResumeAnalyzerPage() {
       }
     };
     fetchUserResumes();
-    aiAPI.getStatus().then((res) => setOllamaStatus(res.data)).catch(() => setOllamaStatus({ available: false, message: 'Could not reach the local AI status service.' }));
   }, []);
 
   const handleFileDrop = (e) => {
@@ -146,9 +143,8 @@ export default function ResumeAnalyzerPage() {
           ATS Resume Analyzer
         </h1>
         <p className="text-sm text-slate-500 mt-1">
-          Get a context-aware review from your local Ollama model, with evidence-based improvements and optional job matching.
+          Get a rule-based resume review with section scores, recognized skills, and optional job-keyword matching.
         </p>
-        {ollamaStatus && <div className={`mt-3 inline-flex max-w-full flex-wrap items-center gap-2 rounded-xl border px-3 py-2 text-xs ${ollamaStatus.available ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-amber-200 bg-amber-50 text-amber-900'}`}><span className={`h-2 w-2 rounded-full ${ollamaStatus.available ? 'bg-emerald-500' : 'bg-amber-500'}`} /><span className="font-bold">{ollamaStatus.available ? `Local AI ready · ${ollamaStatus.active_model}` : 'Local AI model unavailable'}</span><span>{ollamaStatus.message}</span></div>}
       </div>
 
       {/* Input Selection Tabs */}
@@ -214,10 +210,10 @@ export default function ResumeAnalyzerPage() {
             rows={4}
             value={jobDescription}
             onChange={(e) => setJobDescription(e.target.value)}
-            placeholder="Paste the job description to get semantic skill, experience, project, and keyword matching..."
+            placeholder="Paste the job description to compare recognized skills and keywords with your resume..."
             className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-xs leading-relaxed focus:ring-2 focus:ring-indigo-200"
           />
-          <p className="mt-1 text-[11px] text-slate-500">The local AI compares meaning and related experience, not just exact keyword matches.</p>
+          <p className="mt-1 text-[11px] text-slate-500">Matching is based on recognized skill and keyword overlap; it does not infer semantic equivalence.</p>
         </div>
 
         {/* MODE 1: Upload File */}
@@ -335,7 +331,7 @@ export default function ResumeAnalyzerPage() {
                 label="Overall Score"
               />
               <span className="text-xs font-bold text-slate-500 mt-2">
-                AI ATS Compatibility: {analysisResult.ats_compatibility} ({analysisResult.section_scores?.ATS ?? '—'}/100)
+                ATS Compatibility: {analysisResult.ats_compatibility} ({analysisResult.section_scores?.ATS ?? '—'}/100)
               </span>
             </div>
 
@@ -376,39 +372,10 @@ export default function ResumeAnalyzerPage() {
             </div>
           </div>
 
-          {analysisResult.authorship_estimate && (
-            <section className="rounded-2xl border border-indigo-100 bg-gradient-to-r from-indigo-50/80 to-white p-5 sm:p-6 shadow-sm">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                <div className="flex items-start gap-3">
-                  <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-100 text-indigo-700"><ShieldCheck className="h-5 w-5" /></div>
-                  <div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="text-sm font-bold text-slate-900">AI vs Human Resume Estimate</h3>
-                      <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-800">Estimate · {analysisResult.authorship_estimate.confidence} confidence</span>
-                    </div>
-                    <p className="mt-1 text-lg font-extrabold text-indigo-800">{analysisResult.authorship_estimate.label}</p>
-                    <p className="mt-1 max-w-3xl text-xs leading-relaxed text-slate-600">This is a rough estimate based on writing patterns, not proof of who wrote the resume. AI and human writing can look alike, so don’t use this result alone to judge a candidate.</p>
-                  </div>
-                </div>
-                {analysisResult.authorship_estimate.ai_pattern_score !== null && (
-                  <div className="flex shrink-0 items-center gap-3 rounded-xl border border-white bg-white/80 px-4 py-2.5 sm:flex-col sm:gap-0 sm:text-center">
-                    <span className="text-2xl font-extrabold text-indigo-700">{analysisResult.authorship_estimate.ai_pattern_score}<span className="text-sm text-slate-400">/100</span></span>
-                    <span className="text-[11px] font-medium text-slate-500">AI-style signals</span>
-                  </div>
-                )}
-              </div>
-              <ul className="mt-4 grid gap-2 border-t border-indigo-100 pt-4 sm:grid-cols-2">
-                {analysisResult.authorship_estimate.indicators.map((indicator, index) => (
-                  <li key={index} className="flex items-start gap-2 text-xs leading-relaxed text-slate-600"><span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-indigo-400" />{indicator}</li>
-                ))}
-              </ul>
-            </section>
-          )}
-
           {analysisResult.ai_report && (
             <section className="space-y-5 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                <div><h2 className="text-lg font-extrabold text-slate-900">AI Resume Review</h2><p className="mt-1 text-xs text-slate-500">Reasoned by {analysisResult.ai_report.provider} · {analysisResult.ai_report.model}{analysisResult.ai_report.job_description_used ? ' · Job description included' : ''}</p></div>
+                <div><h2 className="text-lg font-extrabold text-slate-900">Detailed Resume Review</h2><p className="mt-1 text-xs text-slate-500">{analysisResult.ai_report.provider} · {analysisResult.ai_report.model}{analysisResult.ai_report.job_description_used ? ' · Job description included' : ''}</p></div>
                 <span className="rounded-full bg-indigo-50 px-3 py-1.5 text-xs font-bold text-indigo-700">Overall: {analysisResult.ai_report.overall_score.score}/100</span>
               </div>
               <p className="rounded-xl bg-slate-50 p-3 text-xs leading-relaxed text-slate-700">{analysisResult.ai_report.overall_score.explanation}</p>
@@ -425,7 +392,7 @@ export default function ResumeAnalyzerPage() {
               {analysisResult.ai_report.strengths?.length > 0 && <div><h3 className="text-sm font-bold text-slate-900">What is working well</h3><ul className="mt-2 grid gap-2 sm:grid-cols-2">{analysisResult.ai_report.strengths.map((item, index) => <li key={index} className="rounded-lg bg-emerald-50 px-3 py-2 text-xs leading-relaxed text-emerald-900">{item}</li>)}</ul></div>}
 
               <div className="grid gap-4 rounded-xl border border-slate-200 bg-slate-50 p-4 sm:grid-cols-2">
-                <div><h3 className="text-xs font-bold text-slate-900">AI ATS review</h3><p className="mt-1 text-xs leading-relaxed text-slate-600">{analysisResult.ai_report.scores.ats.explanation}</p>{analysisResult.ai_report.ats_details?.reasons?.map((item, index) => <p key={index} className="mt-1 text-[11px] text-slate-500">• {item}</p>)}</div>
+                <div><h3 className="text-xs font-bold text-slate-900">ATS review</h3><p className="mt-1 text-xs leading-relaxed text-slate-600">{analysisResult.ai_report.scores.ats.explanation}</p>{analysisResult.ai_report.ats_details?.reasons?.map((item, index) => <p key={index} className="mt-1 text-[11px] text-slate-500">• {item}</p>)}</div>
                 <div><h3 className="text-xs font-bold text-slate-900">Parsing concerns & next steps</h3>{[...(analysisResult.ai_report.ats_details?.issues || []), ...(analysisResult.ai_report.ats_details?.recommended_changes || [])].map((item, index) => <p key={index} className="mt-1 text-[11px] leading-relaxed text-slate-600">• {item}</p>)}</div>
               </div>
 
@@ -451,7 +418,7 @@ export default function ResumeAnalyzerPage() {
                     {Object.entries(analysisResult.ai_report.job_match.scores || {}).map(([key, item]) => <div key={key} className="rounded-lg bg-slate-50 p-3"><div className="flex justify-between gap-2 text-xs font-bold capitalize"><span>{key.replaceAll('_', ' ')}</span><span>{item.score}/100</span></div><p className="mt-1 text-[11px] text-slate-600">{item.explanation}</p></div>)}
                   </div>
                   <div className="grid gap-3 sm:grid-cols-2">
-                    {[['Overlapping skills', analysisResult.ai_report.job_match.overlapping_skills], ['Important missing skills', analysisResult.ai_report.job_match.missing_skills], ['Irrelevant content', analysisResult.ai_report.job_match.irrelevant_content], ['Recommended changes', analysisResult.ai_report.job_match.recommended_changes]].map(([title, items]) => <div key={title}><h4 className="text-xs font-bold text-slate-800">{title}</h4><ul className="mt-1 list-inside list-disc space-y-1 text-[11px] text-slate-600">{(items || []).map((item, index) => <li key={index}>{item}</li>)}</ul></div>)}
+                    {[['Overlapping skills', analysisResult.ai_report.job_match.overlapping_skills], ['Important missing skills', analysisResult.ai_report.job_match.missing_skills], ['Resume skills not found in posting', analysisResult.ai_report.job_match.irrelevant_content], ['Recommended changes', analysisResult.ai_report.job_match.recommended_changes]].map(([title, items]) => <div key={title}><h4 className="text-xs font-bold text-slate-800">{title}</h4><ul className="mt-1 list-inside list-disc space-y-1 text-[11px] text-slate-600">{(items || []).map((item, index) => <li key={index}>{item}</li>)}</ul></div>)}
                   </div>
                 </div>
               )}
@@ -537,7 +504,7 @@ export default function ResumeAnalyzerPage() {
             <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-4">
               <div className="flex items-center gap-2">
                 <Sparkles className="w-5 h-5 text-indigo-600" />
-                <h3 className="text-sm font-bold text-slate-900">AI Recommendations</h3>
+                <h3 className="text-sm font-bold text-slate-900">Recommendations</h3>
               </div>
               <ul className="space-y-2 text-xs text-slate-700">
                 {(analysisResult.suggestions || []).map((sug, idx) => (

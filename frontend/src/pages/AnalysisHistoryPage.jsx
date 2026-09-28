@@ -229,7 +229,7 @@ export default function AnalysisHistoryPage() {
                   <span className="text-xs font-extrabold px-2 py-0.5 rounded-lg bg-indigo-50 text-indigo-700">
                     {item.ai_report?.job_match_status === 'insufficient_requirements'
                       ? 'Insufficient data'
-                      : item.ai_report?.job_match_fallback
+                      : item.ai_report?.job_match_fallback || item.ai_report?.provider === 'Built-in Resume Analysis'
                         ? `Keyword estimate · ${item.match_percentage}%`
                         : `${item.match_percentage}% Match`}
                   </span>
@@ -299,7 +299,7 @@ export default function AnalysisHistoryPage() {
 
             {detailData.ai_report && (
               <section className="space-y-3 border-t border-slate-200 pt-4">
-                <div><h3 className="font-bold text-slate-900">AI review · {detailData.ai_report.model}</h3><p className="mt-1 text-slate-600">{detailData.ai_report.overall_score?.score}/100 — {detailData.ai_report.overall_score?.explanation}</p></div>
+                <div><h3 className="font-bold text-slate-900">Resume review · {detailData.ai_report.model}</h3><p className="mt-1 text-slate-600">{detailData.ai_report.overall_score?.score}/100 — {detailData.ai_report.overall_score?.explanation}</p></div>
                 <div className="grid gap-2 sm:grid-cols-2">{Object.entries(detailData.ai_report.scores || {}).map(([key, value]) => <div key={key} className="rounded-lg bg-slate-50 p-2.5"><div className="flex justify-between gap-2 font-bold capitalize text-slate-800"><span>{key.replaceAll('_', ' ')}</span><span>{value.score}/100</span></div><p className="mt-1 text-slate-600">{value.explanation}</p></div>)}</div>
                 {(detailData.ai_report.weaknesses || []).map((item, index) => <div key={index} className="rounded-lg border border-amber-100 bg-amber-50/50 p-3"><p className="font-bold text-slate-800">{item.section}{item.current ? ` · “${item.current}”` : ''}</p><p className="mt-1 text-slate-600">{item.problem}</p>{item.suggested_version && <p className="mt-2 rounded bg-white p-2 text-indigo-800">{item.suggested_version}</p>}</div>)}
               </section>

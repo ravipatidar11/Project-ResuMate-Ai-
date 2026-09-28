@@ -45,7 +45,7 @@ async def analyze_raw_text(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Analyze pasted resume content with the configured local Ollama model."""
+    """Analyze pasted resume content using the built-in resume review rules."""
     structured_data = ParserService.extract_structured_data(req.text)
     if req.target_role:
         structured_data.setdefault("personal_info", {})["jobTitle"] = req.target_role
@@ -66,7 +66,7 @@ async def analyze_saved_resume(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Run local-model analysis on a saved resume, optionally against a job description."""
+    """Analyze a saved resume, optionally comparing recognized job keywords."""
     resume = db.query(Resume).filter(Resume.id == resume_id, Resume.user_id == current_user.id).first()
     if not resume:
         raise HTTPException(status_code=404, detail="Resume not found")

@@ -18,7 +18,7 @@ ensure_resume_editor_columns()
 app = FastAPI(
     title=settings.PROJECT_NAME,
     version=settings.VERSION,
-    description="Production-grade backend for AI Resume Builder & ATS Analyzer with 100% free Ollama & SQLite stack.",
+    description="Resume builder and ATS analysis using built-in, deterministic resume review rules.",
     docs_url="/docs",
     redoc_url="/redoc"
 )

@@ -13,7 +13,7 @@ TECH_SKILLS = [
     # Frameworks & Libraries
     "react", "react.js", "next.js", "vue", "vue.js", "angular", "svelte", "fastapi", "flask", "django", "express", "node.js", "nodejs", "spring", "spring boot", "asp.net", "laravel", "rails", "tailwind", "tailwindcss", "bootstrap", "material ui", "redux", "graphql", "rest api", "restful api",
     # Data & AI
-    "machine learning", "deep learning", "nlp", "llm", "pandas", "numpy", "scikit-learn", "tensorflow", "pytorch", "keras", "opencv", "langchain", "ollama", "huggingface", "data analysis", "data visualization", "tableau", "power bi",
+    "machine learning", "deep learning", "nlp", "llm", "pandas", "numpy", "scikit-learn", "tensorflow", "pytorch", "keras", "opencv", "langchain", "huggingface", "data analysis", "data visualization", "tableau", "power bi",
     # Cloud & DevOps
     "docker", "kubernetes", "aws", "azure", "gcp", "google cloud", "ci/cd", "github actions", "gitlab", "jenkins", "terraform", "ansible", "linux", "nginx", "apache", "microservices", "serverless",
     # Databases

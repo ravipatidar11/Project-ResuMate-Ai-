@@ -81,10 +81,9 @@ export default function ResumeBuilderPage() {
 
   // AI Modal States
   const [aiModalOpen, setAiModalOpen] = useState(false);
-  const [aiModalTitle, setAiModalTitle] = useState('AI Assistant');
+  const [aiModalTitle, setAiModalTitle] = useState('Resume Assistant');
   const [aiContent, setAiContent] = useState('');
-  const [aiModelUsed, setAiModelUsed] = useState('Free Local AI');
-  const [aiIsLocalLlm, setAiIsLocalLlm] = useState(false);
+  const [aiModelUsed, setAiModelUsed] = useState('Built-in Resume Writing Rules');
   const [aiSuggestions, setAiSuggestions] = useState([]);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiApplyCallback, setAiApplyCallback] = useState(null);
@@ -332,20 +331,19 @@ export default function ResumeBuilderPage() {
     try {
       const techSkills = resumeData.skills?.technical || [];
       const res = await aiAPI.generateSummary({
-        role: resumeData.target_role || resumeData.personal_info.jobTitle || 'Software Engineer',
+        role: resumeData.target_role || resumeData.personal_info.jobTitle || 'Professional',
         experience_level: 'Mid to Senior',
         key_skills: techSkills.slice(0, 6)
       });
       setAiContent(res.data.result);
       setAiModelUsed(res.data.model_used);
-      setAiIsLocalLlm(res.data.is_local_llm);
       setAiSuggestions(res.data.suggestions || []);
       setAiApplyCallback(() => (newText) => {
         setResumeData((prev) => ({ ...prev, summary: newText }));
-        addToast('Summary updated with AI content!', 'success');
+        addToast('Summary updated with the suggested draft!', 'success');
       });
     } catch {
-      addToast('AI generation failed', 'error');
+      addToast('Could not create a summary draft', 'error');
       setAiModalOpen(false);
     } finally {
       setAiLoading(false);
@@ -367,7 +365,6 @@ export default function ResumeBuilderPage() {
       });
       setAiContent(res.data.result);
       setAiModelUsed(res.data.model_used);
-      setAiIsLocalLlm(res.data.is_local_llm);
       setAiSuggestions([
         'Action verbs and quantifiable keywords have been enhanced.',
         'Review the draft below and edit if needed before applying.'
@@ -377,7 +374,7 @@ export default function ResumeBuilderPage() {
         addToast('Summary improved!', 'success');
       });
     } catch {
-      addToast('AI enhancement failed', 'error');
+      addToast('Could not prepare a summary suggestion', 'error');
       setAiModalOpen(false);
     } finally {
       setAiLoading(false);
@@ -392,17 +389,16 @@ export default function ResumeBuilderPage() {
     setAiModalOpen(true);
     try {
       const res = await aiAPI.improveExperience({
-        role: exp.role || 'Software Engineer',
-        company: exp.company || 'Company',
+        role: exp.role || 'Professional',
+        company: exp.company || '',
         bullets: exp.bullets || []
       });
       const bulletText = (res.data.result || []).map((b) => `• ${b}`).join('\n');
       setAiContent(bulletText);
       setAiModelUsed(res.data.model_used);
-      setAiIsLocalLlm(res.data.is_local_llm);
       setAiSuggestions([
-        'Rewritten following the Google XYZ formula: Accomplished [X] measured by [Y] doing [Z].',
-        'Edit individual numbers or metrics to match your actual achievements.'
+        'The wording was lightly edited without adding achievements or numbers.',
+        'Add measurable results only when you can verify them.'
       ]);
       setAiApplyCallback(() => (newText) => {
         const parsedBullets = newText
@@ -428,18 +424,17 @@ export default function ResumeBuilderPage() {
     const prj = resumeData.projects[prjIndex];
     if (!prj) return;
     setAiLoading(true);
-    setAiModalTitle(`AI Project Description: ${prj.title || 'Project'}`);
+    setAiModalTitle(`Project Description: ${prj.title || 'Project'}`);
     setAiModalOpen(true);
     try {
       const res = await aiAPI.generateProjectDesc({
-        title: prj.title || 'Full-Stack Application',
-        technologies: prj.technologies || ['React', 'FastAPI'],
+        title: prj.title || 'Project',
+        technologies: prj.technologies || [],
         overview: prj.subtitle || ''
       });
       const bulletText = (res.data.result || []).map((b) => `• ${b}`).join('\n');
       setAiContent(bulletText);
       setAiModelUsed(res.data.model_used);
-      setAiIsLocalLlm(res.data.is_local_llm);
       setAiApplyCallback(() => (newText) => {
         const parsedBullets = newText
           .split('\n')
@@ -453,7 +448,7 @@ export default function ResumeBuilderPage() {
         addToast('Project bullets generated!', 'success');
       });
     } catch {
-      addToast('Project AI generation failed', 'error');
+      addToast('Could not prepare project suggestions', 'error');
       setAiModalOpen(false);
     } finally {
       setAiLoading(false);
@@ -461,20 +456,25 @@ export default function ResumeBuilderPage() {
   };
 
   const openAISuggestSkills = async () => {
+    const targetRole = resumeData.target_role || resumeData.personal_info.jobTitle || '';
+    if (!targetRole.trim()) {
+      addToast('Add a target role before requesting role-based skill examples.', 'warning');
+      return;
+    }
     setAiLoading(true);
     setAiModalTitle('Trending Skills Suggestions');
     setAiModalOpen(true);
     try {
       const res = await aiAPI.improveSkills({
         current_skills: resumeData.skills,
-        target_role: resumeData.target_role || 'Software Engineer'
+        target_role: targetRole
       });
       const suggested = res.data.result?.suggested_additions || [];
       setAiContent(suggested.join(', '));
       setAiModelUsed(res.data.model_used);
       setAiSuggestions([
-        'Trending skills that high-screening ATS algorithms look for in this role.',
-        'Separate by commas and apply to append to your Technical Skills.'
+        'These role-based examples are not evidence of your experience.',
+        'Add only skills you can verify.'
       ]);
       setAiApplyCallback(() => (newText) => {
         const skillsToAdd = newText.split(',').map((s) => s.trim()).filter(Boolean);
@@ -504,7 +504,7 @@ export default function ResumeBuilderPage() {
       const details = res.data.result;
       const suggestionsText = (details.suggestions || []).map((s) => `• ${s}`).join('\n');
       setAiContent(
-        `AI ATS Compliance Audit: ${details.compliance_score}/100\n\n${(details.reasons || []).join('\n')}\n\nKey Recommendations:\n${suggestionsText}`
+        `Rule-based ATS review: ${details.compliance_score}/100\n\n${(details.reasons || []).join('\n')}\n\nKey recommendations:\n${suggestionsText}`
       );
       setAiModelUsed(res.data.model_used);
       setAiSuggestions(details.suggestions || []);
@@ -743,7 +743,7 @@ export default function ResumeBuilderPage() {
                       className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 transition-colors"
                     >
                       <Sparkles className="w-3.5 h-3.5" />
-                      <span>Generate with AI</span>
+                      <span>Create a draft</span>
                     </button>
                     {resumeData.summary && (
                       <button
@@ -1000,7 +1000,7 @@ export default function ResumeBuilderPage() {
                           className="flex items-center gap-1 text-[11px] font-bold text-indigo-600 hover:text-indigo-800"
                         >
                           <Sparkles className="w-3 h-3" />
-                          <span>AI Bullets</span>
+                          <span>Suggest bullets</span>
                         </button>
                         <button
                           type="button"
@@ -1283,7 +1283,6 @@ export default function ResumeBuilderPage() {
         title={aiModalTitle}
         initialContent={aiContent}
         modelUsed={aiModelUsed}
-        isLocalLlm={aiIsLocalLlm}
         suggestions={aiSuggestions}
         loading={aiLoading}
         onApply={(finalContent) => {
