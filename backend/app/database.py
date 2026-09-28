@@ -4,12 +4,19 @@ from app.config import settings
 
 # Configure engine for SQLite or PostgreSQL
 connect_args = {}
-if settings.DATABASE_URL.startswith("sqlite"):
+database_url = settings.DATABASE_URL.strip()
+if database_url.startswith("postgres://"):
+    database_url = database_url.replace("postgres://", "postgresql+psycopg://", 1)
+elif database_url.startswith("postgresql://"):
+    database_url = database_url.replace("postgresql://", "postgresql+psycopg://", 1)
+
+if database_url.startswith("sqlite"):
     connect_args = {"check_same_thread": False}
 
 engine = create_engine(
-    settings.DATABASE_URL,
+    database_url,
     connect_args=connect_args,
+    pool_pre_ping=True,
     echo=False
 )
 
