@@ -10,9 +10,7 @@ import {
   CheckCircle2,
   RefreshCw,
   Zap,
-  Server,
-  Terminal,
-  ShieldCheck
+  Terminal
 } from 'lucide-react';
 
 export default function ProfilePage() {
@@ -103,7 +101,7 @@ export default function ProfilePage() {
 
       {/* FREE LOCAL AI STATUS CARD */}
       <div className="p-6 rounded-2xl bg-gradient-to-r from-slate-900 via-indigo-950 to-indigo-900 text-white shadow-xl space-y-4">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="flex items-center gap-2.5">
             <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white shadow-md">
               <Cpu className="w-5 h-5" />
@@ -114,9 +112,10 @@ export default function ProfilePage() {
             </div>
           </div>
           <button
+            type="button"
             onClick={checkOllama}
             disabled={checkingOllama}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-white/10 hover:bg-white/20 text-white transition-colors"
+            className="flex shrink-0 items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-white/10 hover:bg-white/20 text-white transition-colors disabled:cursor-wait disabled:opacity-70"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${checkingOllama ? 'animate-spin' : ''}`} />
             <span>Check Connectivity</span>
