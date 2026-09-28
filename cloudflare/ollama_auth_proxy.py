@@ -1,6 +1,7 @@
 """Small authenticated localhost gateway for Ollama when using a Cloudflare Tunnel."""
 
 import hmac
+import json
 import os
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.error import HTTPError, URLError
@@ -14,6 +15,9 @@ MAX_BODY_BYTES = 2 * 1024 * 1024
 
 
 class Handler(BaseHTTPRequestHandler):
+    # HTTP/1.1 lets the tunnel receive Ollama's generated chunks immediately.
+    protocol_version = "HTTP/1.1"
+
     def do_GET(self):
         if self.path == "/health":
             self._respond(200, b"Ollama auth proxy ready", "text/plain")
@@ -55,7 +59,14 @@ class Handler(BaseHTTPRequestHandler):
         request = Request(f"{OLLAMA_URL}{self.path}", data=body, headers=headers, method=self.command)
         try:
             with urlopen(request, timeout=660) as response:
-                self._respond(response.status, response.read(), response.headers.get("Content-Type", "application/json"))
+                try:
+                    wants_stream = bool(json.loads(body or b"{}").get("stream"))
+                except (ValueError, AttributeError):
+                    wants_stream = False
+                if self.path == "/api/generate" and wants_stream:
+                    self._stream_response(response.status, response)
+                else:
+                    self._respond(response.status, response.read(), response.headers.get("Content-Type", "application/json"))
         except HTTPError as error:
             self._respond(error.code, error.read(), error.headers.get("Content-Type", "application/json"))
         except (URLError, TimeoutError, OSError) as error:
@@ -69,6 +80,28 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Cache-Control", "no-store")
         self.end_headers()
         self.wfile.write(payload)
+
+    def _stream_response(self, status, upstream):
+        """Relay Ollama NDJSON using HTTP chunks so Cloudflare sees activity during inference."""
+        self.send_response(status)
+        self.send_header("Content-Type", upstream.headers.get("Content-Type", "application/x-ndjson"))
+        self.send_header("Transfer-Encoding", "chunked")
+        self.send_header("Cache-Control", "no-store, no-transform")
+        self.send_header("X-Accel-Buffering", "no")
+        self.end_headers()
+        try:
+            while True:
+                chunk = upstream.read1(4096)
+                if not chunk:
+                    break
+                self.wfile.write(f"{len(chunk):X}\r\n".encode("ascii"))
+                self.wfile.write(chunk + b"\r\n")
+                self.wfile.flush()
+            self.wfile.write(b"0\r\n\r\n")
+            self.wfile.flush()
+        except (BrokenPipeError, ConnectionResetError):
+            # The remote caller disconnected; close this upstream promptly.
+            pass
 
     def log_message(self, format_string, *args):
         # Never log headers or request bodies, which could contain secrets or resume text.
