@@ -62,7 +62,9 @@ class AIService:
     async def check_ollama_status() -> Dict[str, Any]:
         """Check if local Ollama instance is available and which models are installed."""
         try:
-            async with httpx.AsyncClient(timeout=2.0) as client:
+            # Cloud-hosted Ollama may be reached through a sleeping Render instance
+            # and a home-computer tunnel, so allow time for that path to wake up.
+            async with httpx.AsyncClient(timeout=httpx.Timeout(15.0, connect=8.0)) as client:
                 res = await client.get(
                     f"{settings.OLLAMA_BASE_URL}/api/tags",
                     headers={"Authorization": f"Bearer {settings.OLLAMA_API_KEY}"} if settings.OLLAMA_API_KEY else None,
@@ -85,8 +87,34 @@ class AIService:
                             else f"Ollama is running, but '{settings.OLLAMA_MODEL}' is missing. Run 'ollama pull {settings.OLLAMA_MODEL}'."
                         )
                     }
-        except Exception:
-            pass
+                logger.warning("Ollama status probe returned HTTP %s", res.status_code)
+                return {
+                    "available": False,
+                    "url": settings.OLLAMA_BASE_URL,
+                    "active_model": settings.OLLAMA_MODEL,
+                    "installed_models": [],
+                    "message": (
+                        f"Ollama proxy returned HTTP {res.status_code}. Check that Render OLLAMA_API_KEY "
+                        "matches the Worker BACKEND_API_KEY, and that the Worker upstream token and tunnel are active."
+                    ),
+                }
+        except httpx.TimeoutException:
+            return {
+                "available": False,
+                "url": settings.OLLAMA_BASE_URL,
+                "active_model": settings.OLLAMA_MODEL,
+                "installed_models": [],
+                "message": "Timed out contacting Ollama. Check that the PC, Ollama, authenticated gateway, and Cloudflare tunnel are running.",
+            }
+        except httpx.HTTPError as exc:
+            logger.warning("Ollama status probe failed: %s", exc.__class__.__name__)
+            return {
+                "available": False,
+                "url": settings.OLLAMA_BASE_URL,
+                "active_model": settings.OLLAMA_MODEL,
+                "installed_models": [],
+                "message": "Could not reach the Ollama proxy. Check its Worker URL and active Cloudflare tunnel.",
+            }
 
         return {
             "available": False,
